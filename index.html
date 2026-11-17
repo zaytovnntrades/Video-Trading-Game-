@@ -636,8 +636,9 @@ function drawCandleDiagram(cv) {
     lab(hi, 'High'); lab(lo, 'Low');
     lab(o, 'Open'); lab(c, 'Close');
   };
-  draw(w * 0.22, 82, 102, 108, 76, C.up, 'Green candle: price rose');
-  draw(w * 0.64, 100, 84, 104, 72, C.down, 'Red candle: price fell');
+  const narrow = w < 520;
+  draw(w * 0.22, 82, 102, 108, 76, C.up, narrow ? 'Green: rose' : 'Green candle: price rose');
+  draw(w * 0.64, 100, 84, 104, 72, C.down, narrow ? 'Red: fell' : 'Red candle: price fell');
 }
 
 function drawLines(cv, series, o = {}) {
@@ -825,7 +826,10 @@ function show(id) {
   if (id !== 'trade') pause();
   if (id === 'menu') renderMenu();
   if (id === 'learn') renderLessonList();
-  if (id === 'trade') { if (G && !G.over) { activeChart = renderTrade; renderTrade(); } }
+  if (id === 'trade') {
+    if (G && !G.over) { activeChart = renderTrade; renderTrade(); }
+    else { $('#tSetup').hidden = false; $('#tGame').hidden = true; $('#tSeed').textContent = ''; }
+  }
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-go]');
@@ -867,6 +871,7 @@ $('#lessonList').addEventListener('click', (e) => {
 });
 
 let L = null; // current lesson state
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function openLesson(id) {
   const lesson = LESSON_BY_ID[id];
   L = { lesson, correct: new Set(), taskDone: !lesson.task, click: null, view: null };
@@ -878,7 +883,7 @@ function openLesson(id) {
   const quiz = $('#lQuiz');
   let html = '';
   if (lesson.task) html += `<div class="q card" id="lTask"><b>Chart task:</b> ${lesson.task.prompt}<div class="task-hint muted" id="lTaskFb">Tap or click directly on the chart above.</div></div>`;
-  html += lesson.quiz.map((q, qi) => `<div class="q card" data-q="${qi}"><b>${qi + 1}. ${q.q}</b><div class="opts">${q.opts.map((o, oi) => `<button data-opt="${oi}">${o}</button>`).join('')}</div><div class="fb"></div></div>`).join('');
+  html += lesson.quiz.map((q, qi) => `<div class="q card" data-q="${qi}"><b>${qi + 1}. ${q.q}</b><div class="opts">${shuffle(q.opts.map((o, oi) => `<button data-opt="${oi}">${o}</button>`)).join('')}</div><div class="fb"></div></div>`).join('');
   quiz.innerHTML = html;
   const cv = $('#lChart');
   cv.style.cursor = lesson.task ? 'crosshair' : 'default';
@@ -961,6 +966,7 @@ function startSession(seed) {
   const strat = $('#sStrategy').value;
   seed = seed ?? Math.floor(Math.random() * 1e6);
   const { candles, phases } = Engine.generate(seed, HISTORY + len);
+  $('#pEnd').textContent = 'End session';
   G = { seed, len, strat, candles, phases, i: HISTORY - 1, acct: Engine.createAccount(START_CASH), sma: Engine.sma(candles, 20), showSma: STRATEGIES[strat].sma, markers: [], over: false };
   $('#tSetup').hidden = true; $('#tGame').hidden = false;
   $('#tSeed').textContent = `Market #${seed}`;
@@ -994,7 +1000,10 @@ $$('[data-speed]').forEach((b) => b.addEventListener('click', () => {
   if (timer) { pause(); play(); }
 }));
 $('#pSma').addEventListener('click', () => { if (G) { G.showSma = !G.showSma; renderTrade(); } });
-$('#pEnd').addEventListener('click', () => { if (G && !G.over) endSession(); });
+$('#pEnd').addEventListener('click', () => {
+  if (G && !G.over) endSession();
+  else { $('#tSetup').hidden = false; $('#tGame').hidden = true; $('#tSeed').textContent = ''; }
+});
 
 // order ticket
 function ticket() {
@@ -1114,6 +1123,7 @@ function endSession() {
   pause();
   if (G.acct.pos) closeTrade('end');
   G.over = true;
+  $('#pEnd').textContent = 'New session';
   const s = Engine.stats(G.acct), notes = Engine.coach(s);
   const rec = store.get('ma.records', { sessions: 0, bestReturn: -Infinity, bestDiscipline: 0 });
   rec.sessions++; rec.bestReturn = Math.max(rec.bestReturn, s.returnPct); rec.bestDiscipline = Math.max(rec.bestDiscipline, s.discipline);
@@ -1152,6 +1162,9 @@ function endSession() {
 }
 
 // keyboard shortcuts
+document.addEventListener('keyup', (e) => {
+  if (e.key === ' ' && $('#trade').classList.contains('active') && G && !G.over && !e.target.matches('input,select,textarea')) e.preventDefault();
+});
 document.addEventListener('keydown', (e) => {
   if (!$('#trade').classList.contains('active') || !G || G.over || !$('#modal').hidden) return;
   if (e.target.matches('input,select,textarea')) return;
