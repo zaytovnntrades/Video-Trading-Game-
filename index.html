@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Market Apprentice</title>
+<meta name="description" content="Learn trading basics, then practise in a simulated market with fake money.">
+<meta name="theme-color" content="#0d1117">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Apprentice">
 <style>
 :root{
   --bg:#0d1117;--panel:#161b22;--panel2:#1d2430;--line:#2b3542;--text:#e6edf3;--muted:#8d9aab;
@@ -1177,6 +1184,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 renderMenu();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
 </script>
 </body>
