@@ -920,10 +920,11 @@ function isUnlocked(i) { return i === 0 || progress().done.includes(LESSONS[i - 
 const SKINS = ['#f1d3b8', '#e0b48f', '#c68c63', '#a26a45', '#7a4a2e', '#4f2f1f'];
 const COLORS = ['#f5b942', '#ef5350', '#26a69a', '#58a6ff', '#a371f7', '#ff7ab6', '#3fb950', '#ff8c1a', '#e6edf3', '#2b2f36', '#1f2a3a', '#6b4f2a'];
 const HAIRC = ['#1b1b1b', '#5a3a22', '#c9a26b', '#e8e1d0', '#d1432b', '#58a6ff', '#ff7ab6', '#3fb950'];
-const AV_DEFAULT = { name: 'Rookie', build: 'athletic', head: 'big', skin: '#e0b48f', outfit: 'tee', shirt: '#f5b942', pants: '#1f2a3a', shoes: '#e6edf3', hair: 'spiky', hairColor: '#1b1b1b', hat: 'none', face: 'none', accent: '#ef5350', wobble: 'bouncy', trail: 'gold' };
+const AV_DEFAULT = { name: 'Rookie', figure: 'blocky', build: 'athletic', head: 'big', skin: '#e0b48f', outfit: 'tee', shirt: '#f5b942', pants: '#1f2a3a', shoes: '#e6edf3', hair: 'spiky', hairColor: '#1b1b1b', hat: 'none', face: 'none', accent: '#ef5350', wobble: 'bouncy', trail: 'gold' };
 const AV_GROUPS = [
   { title: 'Identity', opts: [{ key: 'name', label: 'Name (shown above your head on the floor)', type: 'text' }] },
   { title: 'Body', opts: [
+    { key: 'figure', label: 'Figure style', type: 'chips', opts: [['blocky', 'Blocky (box limbs)'], ['smooth', 'Smooth (rounded mannequin)']] },
     { key: 'build', label: 'Build', type: 'chips', opts: [['slim', 'Slim'], ['athletic', 'Athletic'], ['bulky', 'Bulky']] },
     { key: 'head', label: 'Head size', type: 'chips', opts: [['normal', 'Normal'], ['big', 'Big'], ['huge', 'Huge']] },
     { key: 'skin', label: 'Skin tone', type: 'swatch', opts: SKINS },
@@ -948,17 +949,17 @@ const AV_GROUPS = [
 ];
 const AV_PRESETS = {
   Rookie: {},
-  Sprinter: { build: 'slim', head: 'big', outfit: 'tee', shirt: '#58a6ff', pants: '#1f2a3a', shoes: '#f5b942', hair: 'buzz', hat: 'headband', face: 'shades', accent: '#ef5350', wobble: 'stiff', trail: 'blue' },
+  Sprinter: { figure: 'smooth', build: 'slim', head: 'big', outfit: 'tee', shirt: '#58a6ff', pants: '#1f2a3a', shoes: '#f5b942', hair: 'buzz', hat: 'headband', face: 'shades', accent: '#ef5350', wobble: 'stiff', trail: 'blue' },
   Brawler: { build: 'bulky', head: 'big', skin: '#c68c63', outfit: 'singlet', shirt: '#ef5350', shoes: '#2b2f36', hair: 'mohawk', face: 'mask', accent: '#f5b942', wobble: 'floppy', trail: 'none' },
   Banker: { build: 'athletic', head: 'normal', outfit: 'suit', shirt: '#2b2f36', pants: '#2b2f36', shoes: '#2b2f36', hair: 'buzz', hairColor: '#5a3a22', hat: 'tophat', face: 'mustache', accent: '#ef5350', wobble: 'stiff', trail: 'gold' },
-  Wobbler: { build: 'bulky', head: 'huge', outfit: 'hoodie', shirt: '#ff7ab6', pants: '#26a69a', hair: 'afro', hairColor: '#d1432b', face: 'none', wobble: 'floppy', trail: 'rainbow' },
+  Wobbler: { figure: 'smooth', build: 'bulky', head: 'huge', outfit: 'hoodie', shirt: '#ff7ab6', pants: '#26a69a', hair: 'afro', hairColor: '#d1432b', face: 'none', wobble: 'floppy', trail: 'rainbow' },
 };
 function avatar() {
   const saved = store.get('ma.avatar', {}) || {};
   const cfg = { ...AV_DEFAULT };
   for (const g of AV_GROUPS) for (const o of g.opts) {
     const v = saved[o.key];
-    if (o.type === 'text') { if (typeof v === 'string') cfg[o.key] = v.slice(0, 14); }
+    if (o.type === 'text') { if (typeof v === 'string' && v.trim()) cfg[o.key] = v.trim().slice(0, 14); }
     else if (o.type === 'chips') { if (o.opts.some(([k]) => k === v)) cfg[o.key] = v; }
     else if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) cfg[o.key] = v;
   }
@@ -1048,11 +1049,6 @@ const MENU = [
     meta() { if (!World.supported) return '3D isn’t supported on this device. Use Learn and Trade below.'; const r = World.rankInfo(); return `Rank: <b style="color:var(--accent)">${r.name}</b> &middot; ${r.pts} XP`; },
   },
   {
-    id: 'custom', tag: 'Style', title: 'Customize Character',
-    desc: 'Make your trader yours: build, outfit, hair, hats, masks, ragdoll body physics and speed trails.',
-    meta() { const a = avatar(); return `Playing as <b style="color:var(--accent)">${esc(a.name)}</b>`; },
-  },
-  {
     id: 'learn', tag: 'Start here', title: 'Learn',
     desc: 'Beginner basics: candles, trends, support & resistance, long vs short, stop-losses and risk management.',
     meta() { const n = progress().done.length; return `${n} / ${LESSONS.length} lessons complete<div class="progress"><i style="width:${n / LESSONS.length * 100}%"></i></div>`; },
@@ -1061,6 +1057,11 @@ const MENU = [
     id: 'trade', tag: 'Practise', title: 'Trade',
     desc: 'Make (fake) money in a simulated market. Pick a strategy playbook, manage risk, and get a coach’s report after every session.',
     meta() { const r = store.get('ma.records', null); return r ? `${r.sessions} session${r.sessions === 1 ? '' : 's'} &middot; best return ${pct(r.bestReturn)} &middot; best discipline ${r.bestDiscipline}/100` : 'No sessions yet. Starting balance $10,000.'; },
+  },
+  {
+    id: 'custom', tag: 'Style', title: 'Customize Character', feature: true,
+    desc: 'Make your trader yours: build, outfit, hair, hats, masks, ragdoll body physics and speed trails.',
+    meta() { const a = avatar(); return `Playing as <b style="color:var(--accent)">${esc(a.name)}</b>`; },
   },
 ];
 function renderMenu() {

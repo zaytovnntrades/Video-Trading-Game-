@@ -23,7 +23,7 @@ On devices without 3D support, the menu greys out this option and Learn and Trad
 ### Customize Character
 An open character creator with a live, spinnable 3D preview. It's also reachable from the Style Studio on the 3D floor.
 - **Presets:** Rookie, Sprinter, Brawler, Banker, Wobbler. There's also Randomize and Reset.
-- **Body:** build (slim / athletic / bulky), head size (normal / big / huge), skin tone.
+- **Body:** figure style (blocky box limbs or smooth rounded mannequin), build (slim / athletic / bulky), head size (normal / big / huge), skin tone.
 - **Outfit:** tee & shorts, wrestling singlet, tracksuit, hoodie, trader suit, plus top, bottoms, shoes and accent colours.
 - **Head:** six hairstyles plus hair colour, six hats, and face extras (shades, speed visor, wrestler mask, mustache).
 - **Movement:** body physics (stiff / bouncy / floppy ragdoll) and a speed trail when running (gold / blue / pink / rainbow).

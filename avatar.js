@@ -17,11 +17,12 @@
   const HEAD = { normal: 1, big: 1.3, huge: 1.6 };
 
   const matCache = new Map();
+  let SMOOTH = false; // set per build: 'smooth' figure style uses rounded limbs and soft shading
   function lm(color, emissive) {
-    const key = color + '|' + (emissive || '');
+    const key = color + '|' + (emissive || '') + '|' + SMOOTH;
     if (!matCache.has(key)) {
       matCache.set(key, new THREE.MeshStandardMaterial({
-        color, roughness: 0.7, metalness: 0.05, flatShading: true,
+        color, roughness: SMOOTH ? 0.45 : 0.7, metalness: 0.05, flatShading: !SMOOTH,
         emissive: emissive ? color : 0x000000, emissiveIntensity: emissive ? 0.9 : 0,
       }));
     }
@@ -31,6 +32,13 @@
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lm(color, glow));
     m.position.set(x, y, z); return m;
   }
+  // A limb segment: a box (blocky) or a capsule (smooth mannequin).
+  function limb(w, h, d, color, x = 0, y = 0, z = 0) {
+    if (!SMOOTH) return box(w, h, d, color, x, y, z);
+    const r = Math.min(w, d) / 2;
+    const m = new THREE.Mesh(new THREE.CapsuleGeometry(r, Math.max(0.01, h - 2 * r), 4, 12), lm(color));
+    m.scale.set(w / (2 * r), 1, d / (2 * r)); m.position.set(x, y, z); return m;
+  }
   function part(geo, color, x = 0, y = 0, z = 0, glow) {
     const m = new THREE.Mesh(geo, lm(color, glow)); m.position.set(x, y, z); return m;
   }
@@ -38,6 +46,7 @@
 
   // ---------------- build ----------------
   AV.build = function (cfg) {
+    SMOOTH = cfg.figure === 'smooth';
     const [w, a] = BUILD[cfg.build] || BUILD.athletic;
     const HS = HEAD[cfg.head] || 1;
     const o = cfg.outfit, skin = cfg.skin, shirt = cfg.shirt, pants = cfg.pants, acc = cfg.accent;
@@ -48,12 +57,12 @@
 
     const root = new THREE.Group();
     const hips = new THREE.Group(); hips.position.y = 1.03; root.add(hips);
-    hips.add(box(0.5 * w, 0.26, 0.3, thighC));
+    hips.add(limb(0.5 * w, 0.3, 0.3, thighC));
 
     // torso (pivots at the waist so it can lean and wobble)
     const torso = new THREE.Group(); torso.position.y = 0.1; hips.add(torso);
     const depth = 0.36 * (w > 1 ? 1.15 : 1);
-    torso.add(box(0.62 * w, 0.66, depth, shirt, 0, 0.36, 0));
+    torso.add(limb(0.62 * w, 0.7, depth, shirt, 0, 0.36, 0));
     if (w > 1.1) torso.add(box(0.7 * w, 0.24, depth + 0.02, shirt, 0, 0.56, 0)); // broad chest
     if (o === 'singlet') { torso.add(box(0.15 * w, 0.14, depth - 0.04, skin, -0.24 * w, 0.64, 0), box(0.15 * w, 0.14, depth - 0.04, skin, 0.24 * w, 0.64, 0)); }
     if (o === 'suit') { torso.add(box(0.18, 0.42, 0.02, '#ffffff', 0, 0.47, depth / 2 + 0.005), box(0.08, 0.38, 0.03, acc, 0, 0.45, depth / 2 + 0.02)); }
@@ -66,7 +75,7 @@
     const headP = new THREE.Group(); headP.position.y = 0.78; torso.add(headP);
     const r = 0.27 * HS, hy = r * 0.95;
     const masked = cfg.face === 'mask';
-    headP.add(part(new THREE.IcosahedronGeometry(r, 1), masked ? acc : skin, 0, hy, 0));
+    headP.add(part(SMOOTH ? new THREE.SphereGeometry(r, 20, 14) : new THREE.IcosahedronGeometry(r, 1), masked ? acc : skin, 0, hy, 0));
     const eyeY = hy + r * 0.08, eyeZ = r * 0.86;
     if (masked) {
       headP.add(box(0.13 * HS, 0.1 * HS, 0.03, '#ffffff', -0.1 * HS, eyeY, eyeZ), box(0.13 * HS, 0.1 * HS, 0.03, '#ffffff', 0.1 * HS, eyeY, eyeZ));
@@ -124,11 +133,11 @@
     const arms = [];
     for (const s of [-1, 1]) {
       const sh = new THREE.Group(); sh.position.set(s * (0.31 * w + 0.09 * a), 0.62, 0); torso.add(sh);
-      sh.add(box(0.17 * a, 0.38, 0.18 * a, upperArmC, 0, -0.17, 0));
+      sh.add(limb(0.17 * a, 0.42, 0.18 * a, upperArmC, 0, -0.17, 0));
       if (o === 'tee') sh.add(box(0.2 * a, 0.16, 0.21 * a, shirt, 0, -0.04, 0)); // sleeve
       const el = new THREE.Group(); el.position.y = -0.36; sh.add(el);
-      el.add(box(0.15 * a, 0.32, 0.16 * a, foreArmC, 0, -0.15, 0));
-      el.add(box(0.16 * a, 0.16, 0.16 * a, skin, 0, -0.36, 0));
+      el.add(limb(0.15 * a, 0.36, 0.16 * a, foreArmC, 0, -0.15, 0));
+      el.add(SMOOTH ? part(new THREE.SphereGeometry(0.09 * a, 12, 8), skin, 0, -0.36, 0) : box(0.16 * a, 0.16, 0.16 * a, skin, 0, -0.36, 0));
       if (o === 'track' || o === 'suit') el.add(box(0.16 * a, 0.05, 0.17 * a, o === 'suit' ? '#ffffff' : '#e6edf3', 0, -0.29, 0));
       sh.rotation.z = s * 0.12;
       arms.push({ sh, el, s });
@@ -137,9 +146,9 @@
     const legs = [];
     for (const s of [-1, 1]) {
       const hp = new THREE.Group(); hp.position.set(s * 0.13 * w, -0.08, 0); hips.add(hp);
-      hp.add(box(0.22 * w, 0.46, 0.24, thighC, 0, -0.21, 0));
+      hp.add(limb(0.22 * w, 0.5, 0.24, thighC, 0, -0.21, 0));
       const kn = new THREE.Group(); kn.position.y = -0.44; hp.add(kn);
-      kn.add(box(0.19, 0.42, 0.21, shinC, 0, -0.2, 0));
+      kn.add(limb(0.19, 0.46, 0.21, shinC, 0, -0.2, 0));
       if (o === 'tee' || o === 'singlet') kn.add(box(0.2, 0.08, 0.22, '#e6edf3', 0, -0.36, 0)); // socks
       kn.add(box(0.22, 0.12, 0.38, cfg.shoes, 0, -0.45, 0.07));
       kn.add(box(0.23, 0.04, 0.39, '#e6edf3', 0, -0.5, 0.07)); // sole
