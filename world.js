@@ -495,7 +495,7 @@
       const pr = $('#wPrompt');
       if (best) {
         const locked = best.kind === 'lesson' && booths[best.i].status === 'locked';
-        pr.innerHTML = `<kbd>E</kbd> ${locked ? '&#128274; ' : ''}${best.title}`;
+        pr.innerHTML = `<kbd>${document.body.classList.contains('touch') ? 'Tap' : 'E'}</kbd> ${locked ? '&#128274; ' : ''}${best.title}`;
         pr.classList.toggle('locked', locked);
         pr.hidden = false;
       } else pr.hidden = true;

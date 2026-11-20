@@ -535,9 +535,17 @@ const money = (x) => (x < 0 ? '−$' : '$') + Math.abs(x).toLocaleString('en-US'
 const signed = (x) => (x > 0 ? '+' : '') + money(x);
 const pct = (x) => (x > 0 ? '+' : '') + x.toFixed(2) + '%';
 const cls = (x) => (x > 0 ? 'pos' : x < 0 ? 'neg' : '');
+// Saves to localStorage, with an in-memory copy so progress still works this session when storage is blocked.
+const memStore = {};
 const store = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
+  get(k, d) {
+    try { const v = localStorage.getItem(k); if (v != null) return JSON.parse(v); } catch (e) { /* storage unavailable */ }
+    return k in memStore ? JSON.parse(memStore[k]) : d;
+  },
+  set(k, v) {
+    memStore[k] = JSON.stringify(v);
+    try { localStorage.setItem(k, memStore[k]); } catch (e) { /* storage unavailable: memory copy is used */ }
+  },
 };
 const C = { up: '#26a69a', down: '#ef5350', grid: '#232c38', text: '#8d9aab', accent: '#f5b942', blue: '#58a6ff', good: '#3fb950', bad: '#f85149', white: '#e6edf3', bg: '#161b22' };
 
@@ -986,11 +994,12 @@ function updateLessonDone() {
   $('#lNextHint').textContent = ok ? '' : 'Answer every question correctly to finish.';
 }
 $('#lNext').addEventListener('click', () => {
+  const wasDone = progress().done.includes(L.lesson.id);
   markDone(L.lesson.id);
   const i = L.lesson.index;
   if (fromWorld && i < LESSONS.length - 1) {
     show('world');
-    World.toast(`<b>Lesson ${i + 1} complete! +10 XP</b><br>Booth ${i + 2} (<i>${LESSONS[i + 1].title}</i>) is now open on the ${i + 1 < 4 ? 'left' : 'right'} wall.`);
+    World.toast(`<b>Lesson ${i + 1} ${wasDone ? 'reviewed' : 'complete! +10 XP'}</b><br>Booth ${i + 2} (<i>${LESSONS[i + 1].title}</i>) is now open on the ${i + 1 < 4 ? 'left' : 'right'} wall.`);
   } else if (i < LESSONS.length - 1) openLesson(LESSONS[i + 1].id);
   else {
     modal(`<h2>You finished the basics</h2><p>You can now read candles, spot trends and levels, go long or short, place stops and targets, size positions and use a moving average as a filter.</p>
@@ -1243,7 +1252,7 @@ window.MA = {
   toMenu() { fromWorld = false; show('menu'); },
 };
 renderMenu();
-if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+try { if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) { /* sandboxed frame */ }
 })();
 </script>
 </body>
