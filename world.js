@@ -57,16 +57,26 @@
     };
     return sp;
   }
-  function makeCharacter(bodyColor, visorColor) {
-    const g = new THREE.Group();
-    const body = mesh(new THREE.CapsuleGeometry(0.42, 0.75, 6, 16), mat(bodyColor, bodyColor, 0.15), 0, 0.85, 0);
-    const head = mesh(new THREE.SphereGeometry(0.34, 20, 16), mat(0xe9d7c3), 0, 1.75, 0);
-    const visor = mesh(new THREE.BoxGeometry(0.46, 0.13, 0.12), mat(visorColor, visorColor, 1.2), 0, 1.78, 0.28);
-    const shadow = mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }), 0, 0.02, 0);
-    shadow.rotation.x = -Math.PI / 2;
-    g.add(body, head, visor, shadow);
-    g.userData = { body, head };
-    return g;
+  // ---------- characters ----------
+  const MENTOR_CFG = { name: 'Mentor', build: 'athletic', head: 'big', skin: '#a26a45', outfit: 'suit', shirt: '#6e40c9', pants: '#2b2f36', shoes: '#2b2f36', hair: 'buzz', hairColor: '#e8e1d0', hat: 'none', face: 'shades', accent: '#f5b942', wobble: 'stiff', trail: 'none' };
+  const JOGGER_CFGS = [
+    { build: 'slim', head: 'big', skin: '#f1d3b8', outfit: 'tee', shirt: '#26a69a', pants: '#1f2a3a', shoes: '#f5b942', hair: 'ponytail', hairColor: '#c9a26b', hat: 'headband', face: 'none', accent: '#ef5350', wobble: 'bouncy', trail: 'none' },
+    { build: 'bulky', head: 'big', skin: '#7a4a2e', outfit: 'singlet', shirt: '#ef5350', pants: '#1f2a3a', shoes: '#e6edf3', hair: 'mohawk', hairColor: '#1b1b1b', hat: 'none', face: 'mask', accent: '#f5b942', wobble: 'floppy', trail: 'none' },
+    { build: 'athletic', head: 'huge', skin: '#e0b48f', outfit: 'track', shirt: '#58a6ff', pants: '#58a6ff', shoes: '#ef5350', hair: 'afro', hairColor: '#5a3a22', hat: 'none', face: 'visor', accent: '#e6edf3', wobble: 'bouncy', trail: 'none' },
+  ];
+  let nameTag = null, joggers = [], trailPool = [], trailTimer = 0;
+  function makePlayer() {
+    const cfg = MA().avatar();
+    const p = Avatar.build(cfg);
+    p.userData.cfg = cfg;
+    p.userData.m = 0;
+    if (!nameTag) nameTag = makeLabel(0.62, 384, 120);
+    nameTag.position.set(0, p.userData.av.top + 0.55, 0);
+    p.add(nameTag);
+    return p;
+  }
+  function refreshNameTag() {
+    nameTag.set(rankInfo().name.toUpperCase(), player.userData.cfg.name || 'You', '#f5b942');
   }
   const addBox = (minX, maxX, minZ, maxZ) => colliders.push({ t: 'box', minX, maxX, minZ, maxZ });
   const addCircle = (x, z, r) => colliders.push({ t: 'c', x, z, r });
@@ -124,9 +134,12 @@
     buildBooths();
     buildMentor();
     buildExit();
+    buildStudio();
     buildOrbs();
+    buildJoggers();
+    buildTrail();
 
-    player = makeCharacter(0xf5b942, 0x58a6ff);
+    player = makePlayer();
     player.position.set(0, 0, 23);
     player.rotation.y = Math.PI;
     scene.add(player);
@@ -274,11 +287,11 @@
   }
 
   function buildMentor() {
-    mentor = makeCharacter(0x6e40c9, 0xf5b942);
+    mentor = Avatar.build(MENTOR_CFG);
     mentor.position.set(4.2, 0, 19.5); mentor.rotation.y = -0.6;
     scene.add(mentor);
     const sign = makeLabel(1.0); sign.set('MENTOR', 'Ask: what next?', '#a371f7');
-    sign.position.set(0, 2.9, 0); mentor.add(sign);
+    sign.position.set(0, mentor.userData.av.top + 0.75, 0); mentor.add(sign);
     addCircle(4.2, 19.5, 0.6);
     interactables.push({ kind: 'mentor', x: 4.2, z: 19.5, r: 2.4, title: 'Talk to the Mentor' });
   }
@@ -290,6 +303,83 @@
     scene.add(disc);
     const sign = makeLabel(0.9); sign.set('EXIT', 'Main menu', '#58a6ff'); sign.position.set(-6, 4.1, 27.6); scene.add(sign);
     interactables.push({ kind: 'exit', x: -6, z: 26.4, r: 2.0, title: 'Exit to the main menu' });
+  }
+
+  // Style Studio: mirror + clothing rack. Opens the character customizer.
+  function buildStudio() {
+    const SX = 17.5, SZ = 24.5;
+    const g = new THREE.Group(); g.position.set(SX, 0, SZ);
+    const pod = mesh(new THREE.CylinderGeometry(1.5, 1.7, 0.2, 32), mat(0x2a1f3d, COL.purple, 0.25), 0, 0.1, 0);
+    const ring = mesh(new THREE.TorusGeometry(1.55, 0.05, 8, 48), new THREE.MeshBasicMaterial({ color: COL.purple }), 0, 0.21, 0); ring.rotation.x = Math.PI / 2;
+    // full-length mirror on the wall side, facing into the room
+    const frame = mesh(new THREE.BoxGeometry(0.2, 3.4, 2.6), mat(0x1b1b24, COL.purple, 0.15), 2.8, 1.9, 0);
+    const glass = mesh(new THREE.PlaneGeometry(2.3, 3.1), new THREE.MeshStandardMaterial({ color: 0xa9bde0, metalness: 0.9, roughness: 0.08, emissive: 0x223355, emissiveIntensity: 0.4 }), 2.69, 1.9, 0);
+    glass.rotation.y = -Math.PI / 2;
+    g.add(pod, ring, frame, glass);
+    // clothing rack with colourful shirts, behind the podium
+    const rackM = mat(0x8d9aab);
+    g.add(mesh(new THREE.BoxGeometry(0.08, 2.2, 0.08), rackM, -1.4, 1.1, -2.4), mesh(new THREE.BoxGeometry(0.08, 2.2, 0.08), rackM, 1.4, 1.1, -2.4), mesh(new THREE.BoxGeometry(2.9, 0.06, 0.06), rackM, 0, 2.15, -2.4));
+    ['#ef5350', '#f5b942', '#26a69a', '#58a6ff', '#a371f7', '#e6edf3'].forEach((c, i) => {
+      g.add(mesh(new THREE.BoxGeometry(0.42, 0.85, 0.12), mat(c, c, 0.12), -1.15 + i * 0.46, 1.65, -2.4));
+    });
+    scene.add(g);
+    addBox(SX + 2.6, SX + 3.0, SZ - 1.4, SZ + 1.4);
+    addBox(SX - 1.6, SX + 1.6, SZ - 2.6, SZ - 2.2);
+    const sign = makeLabel(1.15); sign.set('CUSTOMIZE YOUR LOOK', 'Style Studio', '#a371f7');
+    sign.position.set(SX, 4.3, SZ); scene.add(sign);
+    interactables.push({ kind: 'studio', x: SX, z: SZ, r: 2.4, title: 'Customize your character (Style Studio)' });
+  }
+
+  // NPC traders jogging laps around the floor.
+  function buildJoggers() {
+    JOGGER_CFGS.forEach((cfg, i) => {
+      const j = Avatar.build(cfg);
+      j.userData.t = i * (Math.PI * 2 / JOGGER_CFGS.length);
+      j.userData.speed = 0.36 + i * 0.04;
+      scene.add(j); joggers.push(j);
+    });
+  }
+  function updateJoggers(dt, time) {
+    for (const j of joggers) {
+      j.userData.t += dt * j.userData.speed;
+      const t = j.userData.t;
+      const x = Math.cos(t) * 17, z = 8.5 + Math.sin(t) * 9.5;
+      const dx = -Math.sin(t) * 17, dz = Math.cos(t) * 9.5;
+      j.position.set(x, 0, z);
+      j.rotation.y = Math.atan2(dx, dz);
+      Avatar.animate(j, dt, 0.85, time);
+    }
+  }
+
+  // Speed trail particles behind the player.
+  function buildTrail() {
+    const geo = new THREE.BoxGeometry(0.16, 0.16, 0.16);
+    for (let i = 0; i < 48; i++) {
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xf5b942, transparent: true, opacity: 0 }));
+      m.visible = false; m.userData.life = 0; scene.add(m); trailPool.push(m);
+    }
+  }
+  const TRAIL = { gold: 0xf5b942, blue: 0x58a6ff, pink: 0xff7ab6 };
+  function updateTrail(dt, time) {
+    const kind = player.userData.cfg.trail;
+    trailTimer -= dt;
+    if (kind !== 'none' && player.userData.m > 0.55 && trailTimer <= 0) {
+      trailTimer = 0.035;
+      const m = trailPool.find((p) => !p.visible);
+      if (m) {
+        m.visible = true; m.userData.life = 0.6;
+        m.position.set(player.position.x + (Math.random() - 0.5) * 0.5, 0.2 + Math.random() * 0.9, player.position.z + (Math.random() - 0.5) * 0.5);
+        if (kind === 'rainbow') m.material.color.setHSL((time * 0.6) % 1, 0.85, 0.6); else m.material.color.setHex(TRAIL[kind] || 0xf5b942);
+      }
+    }
+    for (const m of trailPool) {
+      if (!m.visible) continue;
+      m.userData.life -= dt;
+      if (m.userData.life <= 0) { m.visible = false; continue; }
+      const k = m.userData.life / 0.6;
+      m.material.opacity = k * 0.85; m.scale.setScalar(0.4 + k);
+      m.position.y += dt * 0.6; m.rotation.x += dt * 4; m.rotation.y += dt * 3;
+    }
   }
 
   // Insight orbs: walk into them to learn a quick tip.
@@ -305,7 +395,7 @@
     'Moving averages lag. Use them to confirm a trend, not to predict one.',
     'Review your losing trades. Your mistakes are your best teacher.',
   ];
-  const ORB_SPOTS = [[-14, 22], [14, 23], [-17, 0], [17, 0], [-10, -20], [10, -20], [-26, 24], [26, -25], [-26, -25], [14, 12]];
+  const ORB_SPOTS = [[-14, 22], [-10, 12], [-17, 0], [17, 0], [-10, -20], [10, -20], [-26, 24], [26, -25], [-26, -25], [14, 12]];
   function buildOrbs() {
     const got = MA().store.get('ma.orbs', []);
     const geo = new THREE.IcosahedronGeometry(0.38, 1);
@@ -323,7 +413,7 @@
     const got = MA().store.get('ma.orbs', []);
     if (!got.includes(o.i)) { got.push(o.i); MA().store.set('ma.orbs', got); }
     W.toast(`<b>Insight orb ${got.length}/${ORB_SPOTS.length}</b><br>${TIPS[o.i]}`, 6500);
-    updateHud();
+    updateHud(); refreshNameTag();
   }
 
   // ---------- rank / HUD ----------
@@ -357,13 +447,14 @@
       MA().fromWorld(); MA().openLesson(it.id);
     } else if (it.kind === 'desk') { MA().fromWorld(); MA().show('trade'); }
     else if (it.kind === 'exit') { MA().toMenu(); }
+    else if (it.kind === 'studio') { MA().fromWorld(); MA().show('custom'); }
     else if (it.kind === 'mentor') mentorTalk();
   }
   function mentorTalk() {
     const done = MA().progress().done, L = MA().LESSONS, rec = MA().store.get('ma.records', null), r = rankInfo();
     const nextI = L.findIndex((l) => !done.includes(l.id));
     let msg;
-    if (done.length === 0) msg = `Welcome to the floor, apprentice. Every pro started exactly where you are.<br><br><b>Your first step:</b> walk to <b>Booth 1</b> on the <b>left wall</b> (it's glowing gold). Booths unlock one at a time.`;
+    if (done.length === 0) msg = `Welcome to the floor, apprentice. Every pro started exactly where you are.<br><br><b>Your first step:</b> walk to <b>Booth 1</b> on the <b>left wall</b> (it's glowing gold). Booths unlock one at a time.<br><br>Want a new look first? The <b style="color:#a371f7">Style Studio</b> is just to the right of the entrance.`;
     else if (nextI >= 0) msg = `Good work: ${done.length} of 8 lessons done.<br><br><b>Next:</b> Booth ${nextI + 1}, <i>${L[nextI].title}</i>, on the <b>${nextI < 4 ? 'left' : 'right'} wall</b>.<br><br>Tip: you can also practise at the Trading Desk any time.`;
     else if (!rec) msg = `You've finished every lesson. Now it's time to prove it.<br><br><b>Next:</b> go to the <b>Trading Desk</b> in the middle of the floor, pick the <b>Trend Following</b> playbook and aim for a <b>discipline score of 70+</b>.`;
     else msg = `Rank: <b>${r.name}</b>. Your best discipline score is <b>${rec.bestDiscipline}/100</b>.<br><br>${rec.bestDiscipline < 70 ? 'Get your discipline to 70+: a stop on every trade, risk 2% or less, and targets at least 1.5× your risk.' : 'Try each playbook on the same market using “Replay this market”, and learn which strategy fits which conditions.'}${r.orbN < ORB_SPOTS.length ? `<br><br>There are still <b>${ORB_SPOTS.length - r.orbN} insight orbs</b> hidden around the floor.` : ''}`;
@@ -390,6 +481,7 @@
       <p><b>Lesson booths</b> line the left and right walls (1–4 on the left, 5–8 on the right). <span style="color:#f5b942">Gold</span> = open, <span style="color:#3fb950">green</span> = complete, grey = locked.<br>
       <b>Trading Desk</b> (centre): practise in the simulated market.<br>
       <b>Mentor</b> (purple, near the entrance): tells you your next step.<br>
+      <b>Style Studio</b> (purple mirror, right of the entrance): customize your character.<br>
       <b>Insight orbs</b>: 10 glowing orbs hidden around the floor, each with a pro tip.</p>
       <p>Earn XP to rank up from Intern to Master Trader: lessons (10 XP), orbs (2 XP) and Trade sessions (up to 25 XP for discipline).</p>
       <div class="row" style="margin-top:14px"><button class="primary" data-close>Let's go</button></div>`));
@@ -449,7 +541,8 @@
     const moving = len > 0.08;
     if (moving) {
       if (len > 1) { dx /= len; dz /= len; }
-      const sp = (keys.has('shift') ? 11 : 7) * dt;
+      const run = keys.has('shift') || Math.hypot(stick.x, stick.y) > 0.92;
+      const sp = (run ? 11 : 7) * dt;
       const p = player.position;
       if (!blocked(p.x + dx * sp, p.z)) p.x += dx * sp;
       if (!blocked(p.x, p.z + dz * sp)) p.z += dz * sp;
@@ -459,8 +552,11 @@
       player.rotation.y += diff * Math.min(1, dt * 12);
     }
     const ud = player.userData;
-    ud.body.position.y = 0.85 + (moving ? Math.abs(Math.sin(time * 11)) * 0.12 : Math.sin(time * 2) * 0.02);
-    ud.head.position.y = ud.body.position.y + 0.9;
+    const targetM = moving ? ((keys.has('shift') || Math.hypot(stick.x, stick.y) > 0.92) ? 1 : 0.75) * Math.min(1, len) : 0;
+    ud.m += (targetM - ud.m) * Math.min(1, dt * 8);
+    Avatar.animate(player, dt, ud.m, time);
+    updateTrail(dt, time);
+    updateJoggers(dt, time);
 
     // camera follows
     const portrait = camera.aspect < 1;
@@ -475,7 +571,7 @@
     tickerTex.offset.x = (tickerTex.offset.x + dt * 0.035) % 1;
     for (const b of booths) { b.holo.rotation.y += dt * 1.2; b.holo.position.y = 2.0 + Math.sin(time * 2 + b.i) * 0.15; }
     exitRing.rotation.z += dt * 0.8;
-    mentor.userData.body.position.y = 0.85 + Math.sin(time * 2.2) * 0.04;
+    Avatar.animate(mentor, dt, 0, time);
     mentor.lookAt(player.position.x, 0, player.position.z);
     for (const o of orbs) {
       if (!o.m.visible) continue;
@@ -508,7 +604,13 @@
     try { if (!built) build(); } catch (e) { console.warn('3D world failed to start', e); W.supported = false; return false; }
     document.body.classList.toggle('touch', matchMedia('(pointer:coarse)').matches || navigator.maxTouchPoints > 0);
     active = true; last = 0; keys.clear(); nearest = null; $('#wPrompt').hidden = true;
-    resize(); refreshBooths(); updateHud();
+    if (player.userData.cfgKey !== JSON.stringify(MA().avatar())) {
+      const np = makePlayer();
+      np.position.copy(player.position); np.rotation.y = player.rotation.y;
+      scene.remove(player); Avatar.dispose(player);
+      player = np; scene.add(player);
+    }
+    resize(); refreshBooths(); updateHud(); refreshNameTag();
     cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
     if (!MA().store.get('ma.worldIntro', false)) { MA().store.set('ma.worldIntro', true); setTimeout(() => $('#wHelp').click(), 400); }
     return true;

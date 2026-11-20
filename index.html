@@ -138,12 +138,32 @@ p{margin:.5em 0}
 .menu-item.feature{grid-column:1/-1;min-height:150px;background:linear-gradient(135deg,#1d2430 0%,#20190a 100%);border-color:#5a4720}
 .menu-item:disabled{opacity:.55}
 
+/* customizer */
+.cgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start}
+.cprev{position:sticky;top:12px}
+#cView{height:460px;border-radius:14px;border:1px solid var(--line);overflow:hidden;background:#111823;display:grid;place-items:center;color:var(--muted);text-align:center;padding:0}
+#cView canvas{display:block}
+.cprev .row{margin-top:10px}
+.copts{display:grid;gap:12px}
+.cgroup h4{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--accent)}
+.copt{margin-bottom:10px}
+.copt .lab{font-size:13px;color:var(--muted);margin-bottom:5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{padding:6px 11px;font-size:13px;border-radius:999px}
+.chips button.on{border-color:var(--accent);color:var(--accent);background:#2a2210}
+.swatches{display:flex;flex-wrap:wrap;gap:7px}
+.swatches button{width:30px;height:30px;border-radius:50%;padding:0;border:2px solid var(--line)}
+.swatches button.on{outline:3px solid var(--accent);outline-offset:2px}
+#cName{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;color:var(--text);font:inherit}
+.presets{display:flex;flex-wrap:wrap;gap:8px}
+
 @media (max-width:820px){
   .tgrid{grid-template-columns:1fr}
   #tChart{height:320px}
   .stats{grid-template-columns:repeat(3,1fr)}
   .stats .stat:nth-child(n+4){grid-column:span 1}
 }
+@media (max-width:820px){.cgrid{grid-template-columns:1fr}.cprev{position:static}#cView{height:330px}}
 @media (max-width:480px){
   .screen{padding:12px 16px}
   .stats{grid-template-columns:repeat(2,1fr)}
@@ -176,6 +196,27 @@ p{margin:.5em 0}
   <button id="wPrompt" hidden></button>
   <div id="wStick"><i></i></div>
   <div class="w-hint">WASD / arrows to move &middot; Shift to run &middot; E to interact</div>
+</section>
+
+<!-- ============ CUSTOMIZE ============ -->
+<section id="custom" class="screen">
+  <div class="bar"><button class="ghost" data-go="menu">&larr; Back</button><h2>Customize your character</h2><span class="spacer"></span><span class="muted small">Changes save automatically</span></div>
+  <div class="cgrid">
+    <div class="cprev">
+      <div id="cView"></div>
+      <div class="row">
+        <button id="cRun">&#9654; Preview sprint</button>
+        <button id="cRandom">&#127922; Randomize</button>
+        <button id="cReset" class="ghost">Reset</button>
+      </div>
+      <p class="muted small">Drag the preview to spin your character.</p>
+    </div>
+    <div class="copts">
+      <div class="card cgroup"><h4>Quick presets</h4><div class="presets" id="cPresets"></div></div>
+      <div id="cOpts" class="copts"></div>
+      <button class="primary" id="cDone">Done</button>
+    </div>
+  </div>
 </section>
 
 <!-- ============ LEARN: LESSON LIST ============ -->
@@ -522,6 +563,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
 </script>
 
 <script src="vendor/three.min.js"></script>
+<script src="avatar.js"></script>
 <script src="world.js"></script>
 
 <!-- =====================================================================
@@ -874,6 +916,103 @@ function progress() { return store.get('ma.progress', { done: [] }); }
 function markDone(id) { const p = progress(); if (!p.done.includes(id)) { p.done.push(id); store.set('ma.progress', p); } }
 function isUnlocked(i) { return i === 0 || progress().done.includes(LESSONS[i - 1].id) || progress().done.includes(LESSONS[i].id); }
 
+// ===================== CHARACTER =====================
+const SKINS = ['#f1d3b8', '#e0b48f', '#c68c63', '#a26a45', '#7a4a2e', '#4f2f1f'];
+const COLORS = ['#f5b942', '#ef5350', '#26a69a', '#58a6ff', '#a371f7', '#ff7ab6', '#3fb950', '#ff8c1a', '#e6edf3', '#2b2f36', '#1f2a3a', '#6b4f2a'];
+const HAIRC = ['#1b1b1b', '#5a3a22', '#c9a26b', '#e8e1d0', '#d1432b', '#58a6ff', '#ff7ab6', '#3fb950'];
+const AV_DEFAULT = { name: 'Rookie', build: 'athletic', head: 'big', skin: '#e0b48f', outfit: 'tee', shirt: '#f5b942', pants: '#1f2a3a', shoes: '#e6edf3', hair: 'spiky', hairColor: '#1b1b1b', hat: 'none', face: 'none', accent: '#ef5350', wobble: 'bouncy', trail: 'gold' };
+const AV_GROUPS = [
+  { title: 'Identity', opts: [{ key: 'name', label: 'Name (shown above your head on the floor)', type: 'text' }] },
+  { title: 'Body', opts: [
+    { key: 'build', label: 'Build', type: 'chips', opts: [['slim', 'Slim'], ['athletic', 'Athletic'], ['bulky', 'Bulky']] },
+    { key: 'head', label: 'Head size', type: 'chips', opts: [['normal', 'Normal'], ['big', 'Big'], ['huge', 'Huge']] },
+    { key: 'skin', label: 'Skin tone', type: 'swatch', opts: SKINS },
+  ] },
+  { title: 'Outfit', opts: [
+    { key: 'outfit', label: 'Style', type: 'chips', opts: [['tee', 'Tee & shorts'], ['singlet', 'Wrestling singlet'], ['track', 'Tracksuit'], ['hoodie', 'Hoodie'], ['suit', 'Trader suit']] },
+    { key: 'shirt', label: 'Top colour', type: 'swatch', opts: COLORS },
+    { key: 'pants', label: 'Bottoms colour', type: 'swatch', opts: COLORS },
+    { key: 'shoes', label: 'Shoes', type: 'swatch', opts: COLORS },
+    { key: 'accent', label: 'Accent (hat, mask, tie, logo)', type: 'swatch', opts: COLORS },
+  ] },
+  { title: 'Head', opts: [
+    { key: 'hair', label: 'Hair', type: 'chips', opts: [['bald', 'Bald'], ['buzz', 'Buzz'], ['spiky', 'Spiky'], ['mohawk', 'Mohawk'], ['afro', 'Afro'], ['ponytail', 'Ponytail']] },
+    { key: 'hairColor', label: 'Hair colour', type: 'swatch', opts: HAIRC },
+    { key: 'hat', label: 'Hat', type: 'chips', opts: [['none', 'None'], ['cap', 'Cap'], ['headband', 'Headband'], ['beanie', 'Beanie'], ['tophat', 'Top hat'], ['crown', 'Crown']] },
+    { key: 'face', label: 'Face', type: 'chips', opts: [['none', 'None'], ['shades', 'Shades'], ['visor', 'Speed visor'], ['mask', 'Wrestler mask'], ['mustache', 'Mustache']] },
+  ] },
+  { title: 'Movement', opts: [
+    { key: 'wobble', label: 'Body physics', type: 'chips', opts: [['stiff', 'Stiff'], ['bouncy', 'Bouncy'], ['floppy', 'Floppy (ragdoll)']] },
+    { key: 'trail', label: 'Speed trail (when running)', type: 'chips', opts: [['none', 'None'], ['gold', 'Gold'], ['blue', 'Blue streak'], ['pink', 'Pink'], ['rainbow', 'Rainbow']] },
+  ] },
+];
+const AV_PRESETS = {
+  Rookie: {},
+  Sprinter: { build: 'slim', head: 'big', outfit: 'tee', shirt: '#58a6ff', pants: '#1f2a3a', shoes: '#f5b942', hair: 'buzz', hat: 'headband', face: 'shades', accent: '#ef5350', wobble: 'stiff', trail: 'blue' },
+  Brawler: { build: 'bulky', head: 'big', skin: '#c68c63', outfit: 'singlet', shirt: '#ef5350', shoes: '#2b2f36', hair: 'mohawk', face: 'mask', accent: '#f5b942', wobble: 'floppy', trail: 'none' },
+  Banker: { build: 'athletic', head: 'normal', outfit: 'suit', shirt: '#2b2f36', pants: '#2b2f36', shoes: '#2b2f36', hair: 'buzz', hairColor: '#5a3a22', hat: 'tophat', face: 'mustache', accent: '#ef5350', wobble: 'stiff', trail: 'gold' },
+  Wobbler: { build: 'bulky', head: 'huge', outfit: 'hoodie', shirt: '#ff7ab6', pants: '#26a69a', hair: 'afro', hairColor: '#d1432b', face: 'none', wobble: 'floppy', trail: 'rainbow' },
+};
+function avatar() {
+  const saved = store.get('ma.avatar', {}) || {};
+  const cfg = { ...AV_DEFAULT };
+  for (const g of AV_GROUPS) for (const o of g.opts) {
+    const v = saved[o.key];
+    if (o.type === 'text') { if (typeof v === 'string') cfg[o.key] = v.slice(0, 14); }
+    else if (o.type === 'chips') { if (o.opts.some(([k]) => k === v)) cfg[o.key] = v; }
+    else if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) cfg[o.key] = v;
+  }
+  return cfg;
+}
+function saveAvatar(cfg) { store.set('ma.avatar', cfg); }
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let cfgDraft = null, previewRunning = false;
+function renderCustom() {
+  cfgDraft = avatar();
+  $('#cPresets').innerHTML = Object.keys(AV_PRESETS).map((n) => `<button data-preset="${n}">${n}</button>`).join('');
+  $('#cOpts').innerHTML = AV_GROUPS.map((g) => `<div class="card cgroup"><h4>${g.title}</h4>${g.opts.map((o) => {
+    if (o.type === 'text') return `<div class="copt"><div class="lab">${o.label}</div><input id="cName" maxlength="14" value="${esc(cfgDraft.name)}"></div>`;
+    if (o.type === 'chips') return `<div class="copt"><div class="lab">${o.label}</div><div class="chips">${o.opts.map(([k, l]) => `<button data-key="${o.key}" data-val="${k}" class="${cfgDraft[o.key] === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>`;
+    return `<div class="copt"><div class="lab">${o.label}</div><div class="swatches">${o.opts.map((c) => `<button aria-label="${o.label} ${c}" data-key="${o.key}" data-val="${c}" style="background:${c}" class="${cfgDraft[o.key] === c ? 'on' : ''}"></button>`).join('')}</div></div>`;
+  }).join('')}</div>`).join('');
+  const view = $('#cView');
+  if (!(Avatar.supported && World.supported && Avatar.preview.start(view, cfgDraft))) {
+    view.innerHTML = '<p>The 3D preview isn’t available on this device,<br>but your choices still save.</p>';
+  }
+}
+function applyDraft() {
+  saveAvatar(cfgDraft);
+  $$('#cOpts [data-key]').forEach((b) => b.classList.toggle('on', cfgDraft[b.dataset.key] === b.dataset.val));
+  Avatar.preview.update(cfgDraft);
+}
+$('#cOpts').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-key]'); if (!b) return;
+  cfgDraft[b.dataset.key] = b.dataset.val; applyDraft();
+});
+$('#cOpts').addEventListener('input', (e) => {
+  if (e.target.id !== 'cName') return;
+  cfgDraft.name = e.target.value.slice(0, 14); saveAvatar(cfgDraft);
+});
+$('#cPresets').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-preset]'); if (!b) return;
+  cfgDraft = { ...AV_DEFAULT, ...AV_PRESETS[b.dataset.preset], name: cfgDraft.name };
+  applyDraft();
+});
+$('#cRandom').addEventListener('click', () => {
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  for (const g of AV_GROUPS) for (const o of g.opts) {
+    if (o.type === 'chips') cfgDraft[o.key] = pick(o.opts)[0];
+    else if (o.type === 'swatch') cfgDraft[o.key] = pick(o.opts);
+  }
+  applyDraft();
+});
+$('#cReset').addEventListener('click', () => { cfgDraft = { ...AV_DEFAULT, name: cfgDraft.name }; applyDraft(); });
+$('#cRun').addEventListener('click', () => {
+  previewRunning = !previewRunning; Avatar.preview.setRun(previewRunning);
+  $('#cRun').innerHTML = previewRunning ? '&#10074;&#10074; Stand still' : '&#9654; Preview sprint';
+});
+$('#cDone').addEventListener('click', () => show('menu'));
+
 // ===================== NAVIGATION =====================
 let activeChart = null; // function to redraw on resize
 let fromWorld = false;   // true when Learn/Trade were opened from the 3D world
@@ -881,12 +1020,14 @@ function show(id) {
   if (fromWorld && (id === 'menu' || id === 'learn')) id = 'world';
   if (id === 'world' && !(World.supported && World.enter())) { fromWorld = false; id = 'menu'; }
   if (id !== 'world') World.exit();
+  if (id !== 'custom') Avatar.preview.stop();
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
   window.scrollTo(0, 0);
   activeChart = null;
   if (id !== 'trade') pause();
   if (id === 'menu') renderMenu();
   if (id === 'learn') renderLessonList();
+  if (id === 'custom') renderCustom();
   if (id === 'trade') {
     if (G && !G.over) { activeChart = renderTrade; renderTrade(); }
     else { $('#tSetup').hidden = false; $('#tGame').hidden = true; $('#tSeed').textContent = ''; }
@@ -905,6 +1046,11 @@ const MENU = [
     id: 'world', tag: 'New · 3D', title: 'Enter the Trading Floor', feature: true,
     desc: 'Walk around a 3D trading floor. Visit lesson booths, talk to the Mentor, hunt for insight orbs, and trade at the desk to rank up from Intern to Master Trader.',
     meta() { if (!World.supported) return '3D isn’t supported on this device. Use Learn and Trade below.'; const r = World.rankInfo(); return `Rank: <b style="color:var(--accent)">${r.name}</b> &middot; ${r.pts} XP`; },
+  },
+  {
+    id: 'custom', tag: 'Style', title: 'Customize Character',
+    desc: 'Make your trader yours: build, outfit, hair, hats, masks, ragdoll body physics and speed trails.',
+    meta() { const a = avatar(); return `Playing as <b style="color:var(--accent)">${esc(a.name)}</b>`; },
   },
   {
     id: 'learn', tag: 'Start here', title: 'Learn',
@@ -1247,7 +1393,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 window.MA = {
-  LESSONS, store, progress, isUnlocked, openLesson, show, modal,
+  LESSONS, store, progress, isUnlocked, openLesson, show, modal, avatar,
   fromWorld() { fromWorld = true; },
   toMenu() { fromWorld = false; show('menu'); },
 };
