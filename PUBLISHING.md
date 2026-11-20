@@ -63,7 +63,7 @@ Apple doesn't accept plain website wrappers, so the app needs to feel like a rea
    npm init -y
    npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/android
    npx cap init "Market Apprentice" com.yourname.marketapprentice --web-dir www
-   mkdir www && cp -r index.html manifest.webmanifest sw.js icons www/
+   mkdir www && cp -r index.html world.js vendor manifest.webmanifest sw.js icons www/
    npx cap add ios
    npx cap open ios        # opens Xcode
    ```

@@ -112,6 +112,32 @@ p{margin:.5em 0}
 .note{background:var(--bg);border-radius:8px;padding:10px 12px;font-size:14px}
 .note button{margin-top:6px;padding:4px 10px;font-size:13px}
 
+/* 3D world */
+#world.screen{max-width:none;padding:0}
+#worldView{position:fixed;inset:0;background:#070a10;overflow:hidden}
+#worldView canvas{display:block;width:100%;height:100%;touch-action:none}
+.w-top{position:fixed;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none;z-index:2}
+.w-top>*{pointer-events:auto}
+#wHud{background:rgba(13,17,23,.82);border:1px solid var(--line);border-radius:12px;padding:8px 12px;min-width:180px;backdrop-filter:blur(4px)}
+.w-rank{font-weight:800;color:var(--accent);font-size:16px}
+.w-bar{height:6px;background:var(--bg);border-radius:4px;overflow:hidden;margin:5px 0}
+.w-bar>i{display:block;height:100%;background:var(--accent)}
+.w-sub{font-size:12px;color:var(--muted)}
+.w-btns{display:flex;gap:6px}
+.w-btns button{background:rgba(13,17,23,.82)}
+#wPrompt{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:2;background:var(--accent);color:#1a1300;border:none;font-weight:700;padding:12px 18px;border-radius:999px;box-shadow:0 6px 24px rgba(0,0,0,.5);max-width:calc(100vw - 32px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#wPrompt kbd{background:#1a1300;color:var(--accent);border-radius:5px;padding:1px 7px;margin-right:6px;font:700 13px system-ui}
+#wPrompt.locked{background:#3a4352;color:var(--text)}
+#wToast{position:fixed;top:110px;left:50%;transform:translateX(-50%);z-index:3;background:rgba(13,17,23,.94);border:1px solid var(--accent);border-radius:12px;padding:12px 16px;width:max-content;max-width:min(440px,calc(100vw - 32px));font-size:14px;pointer-events:none}
+#wToast b{color:var(--accent)}
+#wStick{position:fixed;left:22px;bottom:22px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.18);z-index:2;touch-action:none;display:none}
+#wStick i{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(245,185,66,.85);pointer-events:none}
+.w-hint{position:fixed;right:14px;bottom:14px;z-index:2;font-size:12px;color:var(--muted);background:rgba(13,17,23,.7);padding:6px 10px;border-radius:8px}
+@media (max-width:600px){.w-hint{display:none}}
+.touch #wStick{display:block}.touch .w-hint{display:none}.touch #wPrompt{left:auto;right:16px;bottom:40px;transform:none;max-width:calc(100vw - 180px);white-space:normal}
+.menu-item.feature{grid-column:1/-1;min-height:150px;background:linear-gradient(135deg,#1d2430 0%,#20190a 100%);border-color:#5a4720}
+.menu-item:disabled{opacity:.55}
+
 @media (max-width:820px){
   .tgrid{grid-template-columns:1fr}
   #tChart{height:320px}
@@ -137,6 +163,19 @@ p{margin:.5em 0}
   </div>
   <div class="menu-grid" id="menuGrid"></div>
   <p class="disclaimer">Educational game. All prices are randomly generated and all money is fake. This is not financial advice.</p>
+</section>
+
+<!-- ============ 3D WORLD ============ -->
+<section id="world" class="screen">
+  <div id="worldView"></div>
+  <div class="w-top">
+    <div id="wHud"></div>
+    <div class="w-btns"><button id="wHelp">? Help</button><button id="wMenu">Menu</button></div>
+  </div>
+  <div id="wToast" hidden></div>
+  <button id="wPrompt" hidden></button>
+  <div id="wStick"><i></i></div>
+  <div class="w-hint">WASD / arrows to move &middot; Shift to run &middot; E to interact</div>
 </section>
 
 <!-- ============ LEARN: LESSON LIST ============ -->
@@ -482,6 +521,9 @@ const Engine = (() => {
 if (typeof module !== 'undefined') module.exports = Engine;
 </script>
 
+<script src="vendor/three.min.js"></script>
+<script src="world.js"></script>
+
 <!-- =====================================================================
      APP: screens, charts, lessons, trading UI
      ===================================================================== -->
@@ -826,7 +868,11 @@ function isUnlocked(i) { return i === 0 || progress().done.includes(LESSONS[i - 
 
 // ===================== NAVIGATION =====================
 let activeChart = null; // function to redraw on resize
+let fromWorld = false;   // true when Learn/Trade were opened from the 3D world
 function show(id) {
+  if (fromWorld && (id === 'menu' || id === 'learn')) id = 'world';
+  if (id === 'world' && !(World.supported && World.enter())) { fromWorld = false; id = 'menu'; }
+  if (id !== 'world') World.exit();
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === id));
   window.scrollTo(0, 0);
   activeChart = null;
@@ -848,6 +894,11 @@ window.addEventListener('resize', () => { if (activeChart) activeChart(); });
 // Menu options live in this list, so adding a mode later is one new entry.
 const MENU = [
   {
+    id: 'world', tag: 'New · 3D', title: 'Enter the Trading Floor', feature: true,
+    desc: 'Walk around a 3D trading floor. Visit lesson booths, talk to the Mentor, hunt for insight orbs, and trade at the desk to rank up from Intern to Master Trader.',
+    meta() { if (!World.supported) return '3D isn’t supported on this device. Use Learn and Trade below.'; const r = World.rankInfo(); return `Rank: <b style="color:var(--accent)">${r.name}</b> &middot; ${r.pts} XP`; },
+  },
+  {
     id: 'learn', tag: 'Start here', title: 'Learn',
     desc: 'Beginner basics: candles, trends, support & resistance, long vs short, stop-losses and risk management.',
     meta() { const n = progress().done.length; return `${n} / ${LESSONS.length} lessons complete<div class="progress"><i style="width:${n / LESSONS.length * 100}%"></i></div>`; },
@@ -859,7 +910,7 @@ const MENU = [
   },
 ];
 function renderMenu() {
-  $('#menuGrid').innerHTML = MENU.map((m) => `<button class="menu-item" data-go="${m.id}"><span class="tag">${m.tag}</span><h3>${m.title}</h3><span class="muted">${m.desc}</span><span class="meta">${m.meta()}</span></button>`).join('');
+  $('#menuGrid').innerHTML = MENU.map((m) => `<button class="menu-item${m.feature ? ' feature' : ''}" data-go="${m.id}" ${m.id === 'world' && !World.supported ? 'disabled' : ''}><span class="tag">${m.tag}</span><h3>${m.title}</h3><span class="muted">${m.desc}</span><span class="meta">${m.meta()}</span></button>`).join('');
 }
 
 // ===================== LEARN =====================
@@ -937,7 +988,10 @@ function updateLessonDone() {
 $('#lNext').addEventListener('click', () => {
   markDone(L.lesson.id);
   const i = L.lesson.index;
-  if (i < LESSONS.length - 1) openLesson(LESSONS[i + 1].id);
+  if (fromWorld && i < LESSONS.length - 1) {
+    show('world');
+    World.toast(`<b>Lesson ${i + 1} complete! +10 XP</b><br>Booth ${i + 2} (<i>${LESSONS[i + 1].title}</i>) is now open on the ${i + 1 < 4 ? 'left' : 'right'} wall.`);
+  } else if (i < LESSONS.length - 1) openLesson(LESSONS[i + 1].id);
   else {
     modal(`<h2>You finished the basics</h2><p>You can now read candles, spot trends and levels, go long or short, place stops and targets, size positions and use a moving average as a filter.</p>
       <p><b>Your next step:</b> open Trade and pick the <b>Trend Following</b> playbook. Aim for a discipline score of 70 or more, which matters more than profit at this stage.</p>
@@ -1183,6 +1237,11 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'c') closeTrade('manual');
 });
 
+window.MA = {
+  LESSONS, store, progress, isUnlocked, openLesson, show, modal,
+  fromWorld() { fromWorld = true; },
+  toMenu() { fromWorld = false; show('menu'); },
+};
 renderMenu();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 })();

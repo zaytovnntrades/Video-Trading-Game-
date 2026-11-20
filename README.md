@@ -6,6 +6,18 @@ An educational trading game that runs in your browser. Learn the basics, then pr
 
 ## Menu
 
+### Enter the Trading Floor (3D)
+A walkable 3D trading floor and the game's main hub. It's built entirely in code with three.js, so it works offline.
+- **Move:** WASD or the arrow keys (hold Shift to run). On a phone, use the on-screen joystick.
+- **Interact:** press **E**, or tap the button that pops up.
+- **Lesson booths:** 1–4 line the left wall and 5–8 the right wall. Gold = open, green = done, grey = locked.
+- **Trading Desk** (centre): opens Trade. Behind it, a giant live 3D candlestick chart keeps playing.
+- **Mentor** (purple, near the entrance): tells you exactly what to do next.
+- **Insight orbs:** 10 hidden orbs, each with a pro tip.
+- **Rank:** earn XP (lessons 10, orbs 2, Trade sessions up to 25 for discipline) to climb from Intern → Apprentice → Junior Trader → Trader → Senior Trader → Master Trader.
+
+On devices without 3D support, the menu greys out this option and Learn and Trade work as normal.
+
 ### Learn: the beginner basics
 Eight short lessons. Each has a chart and a quick check you must pass to unlock the next lesson.
 
@@ -33,7 +45,8 @@ Shortcuts: `Space` play/pause, `N` next candle, `B` buy, `S` short, `C` close.
 - Stops and targets trigger when a candle's **wick** touches them, not just its close. If one candle touches both, the stop is assumed to fill first. If price gaps past your stop, the fill is at the open.
 
 ## Development
-- `index.html`: everything. The `<script id="engine">` block is pure logic (market generator, account, stats, coach). The second script is the UI.
+- `world.js`: the 3D Trading Floor. `vendor/three.min.js` is three.js r149 (MIT licence in `vendor/three.LICENSE`).
+- `index.html`: the menu, Learn and Trade. The `<script id="engine">` block is pure logic (market generator, account, stats, coach). The second script is the UI.
 - `node tests/engine.test.js`: tests for the trading math (P&L signs, stops on wicks, gaps, sizing limits, stats).
 
 Progress and best scores are saved in your browser's localStorage.
