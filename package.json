@@ -1,0 +1,22 @@
+{
+  "name": "market-apprentice",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Educational trading game: learn the basics, then practise in a simulated market.",
+  "scripts": {
+    "test": "node tests/engine.test.js",
+    "build:web": "node scripts/build-web.mjs",
+    "android:sync": "npm run build:web && npx cap sync android",
+    "ios:sync": "npm run build:web && npx cap sync ios"
+  },
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.2"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/ios": "^8.6.2"
+  }
+}

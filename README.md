@@ -6,6 +6,31 @@ An educational trading game that runs in your browser. Learn the basics, then pr
 
 ## Menu
 
+### Enter the Trading Floor (3D)
+A walkable 3D trading floor and the game's main hub. It's built entirely in code with three.js, so it works offline.
+- **Move:** WASD or the arrow keys (hold Shift to run). On a phone, use the on-screen joystick.
+- **Interact:** press **E**, or tap the button that pops up.
+- **Lesson booths:** 1–4 line the left wall and 5–8 the right wall. Gold = open, green = done, grey = locked.
+- **Trading Desk** (centre): opens Trade. Behind it, a giant live 3D candlestick chart keeps playing.
+- **Mentor** (purple, near the entrance): tells you exactly what to do next.
+- **Insight orbs:** 10 hidden orbs, each with a pro tip.
+- **Style Studio** (purple mirror, right of the entrance): opens the character customizer.
+- **Joggers:** NPC traders running laps around the floor.
+- **Rank:** earn XP (lessons 10, orbs 2, Trade sessions up to 25 for discipline) to climb from Intern → Apprentice → Junior Trader → Trader → Senior Trader → Master Trader.
+
+On devices without 3D support, the menu greys out this option and Learn and Trade work as normal.
+
+### Customize Character
+An open character creator with a live, spinnable 3D preview. It's also reachable from the Style Studio on the 3D floor.
+- **Presets:** Rookie, Sprinter, Brawler, Banker, Wobbler. There's also Randomize and Reset.
+- **Body:** figure style (blocky box limbs or smooth rounded mannequin), build (slim / athletic / bulky), head size (normal / big / huge), skin tone.
+- **Outfit:** tee & shorts, wrestling singlet, tracksuit, hoodie, trader suit, plus top, bottoms, shoes and accent colours.
+- **Head:** six hairstyles plus hair colour, six hats, and face extras (shades, speed visor, wrestler mask, mustache).
+- **Movement:** body physics (stiff / bouncy / floppy ragdoll) and a speed trail when running (gold / blue / pink / rainbow).
+- Your name and rank float above your character on the floor. Changes save automatically.
+
+The characters are original low-poly figures with jointed limbs, a forward-leaning sprint cycle and spring-driven wobble.
+
 ### Learn: the beginner basics
 Eight short lessons. Each has a chart and a quick check you must pass to unlock the next lesson.
 
@@ -32,9 +57,19 @@ Shortcuts: `Space` play/pause, `N` next candle, `B` buy, `S` short, `C` close.
 - One position at a time and no leverage. A short sets aside its value in cash as collateral, and your balance can never go negative.
 - Stops and targets trigger when a candle's **wick** touches them, not just its close. If one candle touches both, the stop is assumed to fill first. If price gaps past your stop, the fill is at the open.
 
+## Android app
+`android/` is a Capacitor project that bundles the game. GitHub Actions (`.github/workflows/android.yml`) builds an installable test APK on every push. Download it from Actions → Android app → Artifacts. See `PUBLISHING.md` for the signed Google Play release.
+
+## iOS app
+`ios/` is a Capacitor project that bundles the game. GitHub Actions (`.github/workflows/ios.yml`) builds it on a Mac runner and launches it in an iPhone simulator on every relevant push. A manual run can sign it and upload it to TestFlight. See `PUBLISHING.md`, Stage 3.
+
 ## Development
-- `index.html`: everything. The `<script id="engine">` block is pure logic (market generator, account, stats, coach). The second script is the UI.
+- `avatar.js`: character builder, animation and the customizer preview.
+- `world.js`: the 3D Trading Floor. `vendor/three.min.js` is three.js r149 (MIT licence in `vendor/three.LICENSE`).
+- `index.html`: the menu, Learn and Trade. The `<script id="engine">` block is pure logic (market generator, account, stats, coach). The second script is the UI.
 - `node tests/engine.test.js`: tests for the trading math (P&L signs, stops on wicks, gaps, sizing limits, stats).
+
+- `npm run build:web` copies the game into `www/`, `npm run android:sync` also updates the Android project, and `npm run ios:sync` the iOS project.
 
 Progress and best scores are saved in your browser's localStorage.
 
