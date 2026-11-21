@@ -1,0 +1,145 @@
+name: iOS app
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths:
+      - 'index.html'
+      - 'avatar.js'
+      - 'world.js'
+      - 'vendor/**'
+      - 'icons/**'
+      - 'ios/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.json'
+      - 'scripts/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+    inputs:
+      upload_to_testflight:
+        description: 'Sign and upload to TestFlight (needs the four App Store Connect secrets)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  simulator:
+    name: Build and run in the iPhone simulator
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest stable Xcode on the runner
+        run: |
+          XC=$(ls -d /Applications/Xcode_[0-9]*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+      - name: Bundle the game into the iOS project
+        run: npm run ios:sync
+
+      - name: Build for the simulator (no signing needed)
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -40
+          test -d build/Build/Products/Debug-iphonesimulator/App.app
+
+      - name: Launch the game in a simulator and take screenshots
+        run: |
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)['devices']
+          phones = [x for rt, ds in d.items() if 'iOS' in rt for x in ds if x['name'].startswith('iPhone')]
+          print(phones[-1]['udid'])")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/App.app
+          xcrun simctl launch "$UDID" com.marketapprentice.game
+          sleep 20
+          mkdir -p shots
+          xcrun simctl io "$UDID" screenshot shots/ios-menu.png
+          xcrun simctl spawn "$UDID" launchctl list | grep com.marketapprentice.game
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-screenshot
+          path: shots/
+          if-no-files-found: error
+
+  testflight:
+    name: Sign and upload to TestFlight
+    if: github.event_name == 'workflow_dispatch' && inputs.upload_to_testflight
+    needs: simulator
+    runs-on: macos-latest
+    env:
+      TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+      API_KEY_ID: ${{ secrets.APPSTORE_API_KEY_ID }}
+      API_ISSUER_ID: ${{ secrets.APPSTORE_API_ISSUER_ID }}
+      API_KEY_P8: ${{ secrets.APPSTORE_API_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the App Store Connect secrets are set
+        run: |
+          for v in TEAM_ID API_KEY_ID API_ISSUER_ID API_KEY_P8; do
+            if [ -z "${!v}" ]; then echo "::error::Missing secret for $v (see PUBLISHING.md, Stage 3)"; exit 1; fi
+          done
+
+      - name: Use the newest stable Xcode on the runner
+        run: |
+          XC=$(ls -d /Applications/Xcode_[0-9]*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run ios:sync
+
+      - name: Archive (Xcode signs automatically with the API key)
+        run: |
+          echo "$API_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "$API_KEY_ID" -authenticationKeyIssuerID "$API_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            archive | tail -40
+
+      - name: Upload to App Store Connect (appears in TestFlight)
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "$API_KEY_ID" -authenticationKeyIssuerID "$API_ISSUER_ID"
+
+      - name: Remove the API key file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"

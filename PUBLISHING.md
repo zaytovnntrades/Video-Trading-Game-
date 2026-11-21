@@ -7,7 +7,7 @@ That one base gives you all three: **website → Android app → iPhone app**. D
 |---|---|---|---|---|
 | 1 | Website (GitHub Pages) | Free | 10 min | No |
 | 2 | Google Play (Android) | $25 one-time | 1–3 days + review | No |
-| 3 | Apple App Store (iPhone) | $99 / year | 1–2 weeks + review | Yes (or a cloud Mac) |
+| 3 | Apple App Store (iPhone) | $99 / year | 1–2 weeks + review | No (GitHub's Macs build it) |
 
 ---
 
@@ -80,30 +80,45 @@ npx cap open android     # opens Android Studio; press Run to install on a phone
 
 ## Stage 3: iPhone / Apple App Store
 
-Apple doesn't accept plain website wrappers, so the app needs to feel like a real app. Our game is offline-capable, has no browser address bar and doesn't depend on a website, which all help.
+The repo contains a ready iOS app project (`ios/`, Capacitor). Like Android, the game is bundled inside, so it plays fully offline. **You don't need a Mac:** GitHub's Mac machines build it.
 
-1. Join the **Apple Developer Program** at developer.apple.com ($99/year).
-2. You need **Xcode**, which only runs on a Mac. With no Mac, rent a cloud Mac (MacinCloud, about $1/hr), or use a cloud build service like Codemagic or Ionic Appflow.
-3. Wrap the game with **Capacitor**, the most common free tool for turning web apps into native apps:
-   ```bash
-   npm ci                  # Capacitor is already set up in this repo (see Stage 2)
-   npm install @capacitor/ios
-   npm run build:web       # copies the game files into www/
-   npx cap add ios
-   npx cap open ios        # opens Xcode
-   ```
-4. In Xcode, set your Team (your developer account), the app icon (1024×1024, no transparency) and the version. Then choose **Product → Archive → Distribute → App Store Connect**.
-5. In **App Store Connect**, create the app listing:
-   - screenshots for 6.7" and 6.5" iPhones
-   - a description and keywords (e.g. "trading, stock market, learn, simulator, education")
-   - a privacy policy URL, with privacy details set to "Data Not Collected"
+### What happens automatically (free, no Apple account)
+Every push that changes the game builds the iOS app and **runs it in an iPhone simulator**. A screenshot of the running app is saved under Actions → **iOS app** → latest run → Artifacts → **ios-simulator-screenshot**.
+> If your repo is private, Mac build minutes count 10× against GitHub's free allowance. Public repos are free.
+
+### Getting it onto a real iPhone (TestFlight)
+iPhones can't install app files the way Android can. The route is **TestFlight**, Apple's free beta-testing app, which needs a developer account.
+1. Join the **Apple Developer Program** at developer.apple.com ($99/year). Note your **Team ID** (Membership details page).
+2. In **App Store Connect** (appstoreconnect.apple.com) go to **Apps → + → New App**. Choose platform iOS, name "Market Apprentice", bundle ID `com.marketapprentice.game` (register it under Certificates, IDs & Profiles → Identifiers if it isn't listed), and SKU `market-apprentice`.
+3. Create an API key: App Store Connect → **Users and Access → Integrations → App Store Connect API → Team Keys → +**. Use the **Admin** role. Download the `.p8` file (it can only be downloaded once, so back it up) and note the **Key ID** and **Issuer ID**.
+4. On GitHub: **Settings → Secrets and variables → Actions → New repository secret**. Add four secrets:
+   - `IOS_TEAM_ID`: your Team ID
+   - `APPSTORE_API_KEY_ID`: the Key ID
+   - `APPSTORE_API_ISSUER_ID`: the Issuer ID
+   - `APPSTORE_API_KEY_P8`: open the `.p8` file in a text editor and paste all of it
+5. Go to **Actions → iOS app → Run workflow**, tick **Sign and upload to TestFlight**, and run it. Xcode signs the app automatically with the key, so you never handle certificates yourself.
+6. After about 10–30 minutes of Apple processing, the build appears in App Store Connect → your app → **TestFlight**. Add yourself as an internal tester, install the **TestFlight** app on your iPhone, and install Market Apprentice from there.
+
+### Publishing on the App Store
+1. In App Store Connect, fill in the listing:
+   - screenshots for 6.9" and 6.5" iPhones (plus iPad, since the app supports iPad)
+   - description and keywords ("trading, stock market, learn, simulator, education")
+   - **privacy policy URL**, with App Privacy set to **Data Not Collected**
    - age rating
-6. Test it first with **TestFlight**, then submit for review. Review usually takes 1–3 days.
+   - category **Education**
+2. Under the version, choose the TestFlight build and click **Submit for Review**. Review usually takes 1–3 days.
 
 **Approval tips for Apple**
-- Make the category **Education**, not Finance. A simulator with fake money that teaches is easier to approve.
-- Say clearly in the description that it is a simulation, with no real money and no real trading.
-- Never add real-money features, crypto links or "get rich" claims. Apple and Google both reject those.
+- Say clearly that it's a **simulation with fake money**, with no real trading and no real-money features.
+- Apple rejects thin website wrappers. This app bundles everything, plays offline and has native touch controls, which helps.
+- Export compliance is pre-answered (`ITSAppUsesNonExemptEncryption = false`), so uploads don't ask about encryption.
+
+### Working on the iOS project yourself (optional, needs a Mac)
+```bash
+npm ci
+npm run ios:sync      # copies the game into www/ and into the iOS project
+npx cap open ios      # opens Xcode; pick a simulator or your iPhone and press Run
+```
 
 ---
 
@@ -111,6 +126,6 @@ Apple doesn't accept plain website wrappers, so the app needs to feel like a rea
 - [ ] Website live and installable (Stage 1)
 - [ ] Privacy policy page published
 - [ ] 4–6 screenshots (Menu, Lesson, Trade with a position open, Report card)
-- [ ] 512×512 icon (Android) and 1024×1024 icon (iOS)
+- [ ] 512×512 icon (Android: `icons/icon-512.png`) and 1024×1024 icon (iOS: already in the Xcode project)
 - [ ] Short and full store descriptions, with the "educational simulation, not financial advice" line
 - [ ] Signing keys backed up (Android keystore)

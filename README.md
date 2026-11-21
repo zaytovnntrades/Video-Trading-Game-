@@ -60,13 +60,16 @@ Shortcuts: `Space` play/pause, `N` next candle, `B` buy, `S` short, `C` close.
 ## Android app
 `android/` is a Capacitor project that bundles the game. GitHub Actions (`.github/workflows/android.yml`) builds an installable test APK on every push. Download it from Actions → Android app → Artifacts. See `PUBLISHING.md` for the signed Google Play release.
 
+## iOS app
+`ios/` is a Capacitor project that bundles the game. GitHub Actions (`.github/workflows/ios.yml`) builds it on a Mac runner and launches it in an iPhone simulator on every relevant push. A manual run can sign it and upload it to TestFlight. See `PUBLISHING.md`, Stage 3.
+
 ## Development
 - `avatar.js`: character builder, animation and the customizer preview.
 - `world.js`: the 3D Trading Floor. `vendor/three.min.js` is three.js r149 (MIT licence in `vendor/three.LICENSE`).
 - `index.html`: the menu, Learn and Trade. The `<script id="engine">` block is pure logic (market generator, account, stats, coach). The second script is the UI.
 - `node tests/engine.test.js`: tests for the trading math (P&L signs, stops on wicks, gaps, sizing limits, stats).
 
-- `npm run build:web` copies the game into `www/`, and `npm run android:sync` also updates the Android project.
+- `npm run build:web` copies the game into `www/`, `npm run android:sync` also updates the Android project, and `npm run ios:sync` the iOS project.
 
 Progress and best scores are saved in your browser's localStorage.
 

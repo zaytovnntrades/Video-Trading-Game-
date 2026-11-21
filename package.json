@@ -6,7 +6,8 @@
   "scripts": {
     "test": "node tests/engine.test.js",
     "build:web": "node scripts/build-web.mjs",
-    "android:sync": "npm run build:web && npx cap sync android"
+    "android:sync": "npm run build:web && npx cap sync android",
+    "ios:sync": "npm run build:web && npx cap sync ios"
   },
   "license": "UNLICENSED",
   "dependencies": {
@@ -15,6 +16,7 @@
   },
   "devDependencies": {
     "@capacitor/android": "^8.6.2",
-    "@capacitor/cli": "^8.6.2"
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/ios": "^8.6.2"
   }
 }
