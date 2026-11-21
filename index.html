@@ -1393,13 +1393,28 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'c') closeTrade('manual');
 });
 
+// Android back button: close a dialog, then step back a screen; exit only from the menu.
+// Returns false when the app should close.
+function handleBack() {
+  if (!$('#modal').hidden) { $('#modal').hidden = true; return true; }
+  const cur = document.querySelector('.screen.active').id;
+  if (cur === 'menu') return false;
+  if (cur === 'world') { MA.toMenu(); return true; }
+  if (cur === 'lesson') { show('learn'); return true; }
+  show('menu'); // returns to the 3D floor when the screen was opened from it
+  return true;
+}
+const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const CapApp = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+if (isNative && CapApp) CapApp.addListener('backButton', () => { if (!handleBack()) CapApp.exitApp(); });
+
 window.MA = {
-  LESSONS, store, progress, isUnlocked, openLesson, show, modal, avatar,
+  LESSONS, store, progress, isUnlocked, openLesson, show, modal, avatar, handleBack,
   fromWorld() { fromWorld = true; },
   toMenu() { fromWorld = false; show('menu'); },
 };
 renderMenu();
-try { if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) { /* sandboxed frame */ }
+try { if (!isNative && 'serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch (e) { /* sandboxed frame */ }
 })();
 </script>
 </body>

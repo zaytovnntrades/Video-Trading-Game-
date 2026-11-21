@@ -27,28 +27,54 @@ That one base gives you all three: **website → Android app → iPhone app**. D
 
 ---
 
-## Stage 2: Android / Google Play (no coding needed)
+## Stage 2: Android / Google Play
 
-Google Play accepts PWAs wrapped as a "Trusted Web Activity".
+The repo already contains a ready Android app project (`android/`, made with Capacitor). The game files are bundled inside the app, so it works fully offline and doesn't depend on the website.
 
-1. Create a **Google Play Console** account at play.google.com/console ($25, one-time).
-2. Go to **pwabuilder.com** and paste your Stage 1 website URL. It scores the app; the manifest and offline support are already in place.
-3. Click **Package for stores → Android → Generate**. Download the zip. It contains:
-   - an `.aab` file, which is what you upload to Play
-   - a `signing.keystore` and its passwords. **Back these up somewhere safe.** If you lose them, you can never update the app.
-   - an `assetlinks.json` file
-4. Put `assetlinks.json` in the repo at `.well-known/assetlinks.json`, commit, and push. This proves you own the website and removes the browser address bar inside the app.
-   - Also add an empty file called `.nojekyll` at the root of the repo, so GitHub Pages serves the `.well-known` folder.
-5. In Play Console: **Create app → Production → Upload the .aab**.
+### Get a test APK onto your phone (free, about 5 minutes)
+Every push to `main` (or a `claude/...` branch) builds the app automatically on GitHub.
+1. On GitHub, open the repo → **Actions** → **Android app** → the latest green run.
+2. Under **Artifacts**, download **market-apprentice-debug-apk** and unzip it to get `app-debug.apk`.
+3. Copy it to your Android phone and open it. Allow "install unknown apps" when asked.
+4. To rebuild by hand: Actions → Android app → **Run workflow**.
+
+The debug APK is for testing only. Google Play needs a **signed release bundle (.aab)**.
+
+### Signed release for Google Play
+1. **Create your upload key once, on your own computer.** It needs Java (any recent JDK):
+   ```bash
+   keytool -genkeypair -v -keystore market-apprentice.keystore -alias upload -keyalg RSA -keysize 2048 -validity 10000
+   ```
+   **Back up this file and its passwords.** If you lose them you can't update the app. Never commit the keystore.
+2. Turn it into text: `base64 -w0 market-apprentice.keystore` (on a Mac: `base64 -i market-apprentice.keystore`).
+3. On GitHub, go to **Settings → Secrets and variables → Actions → New repository secret** and add four secrets:
+   - `ANDROID_KEYSTORE_BASE64`: the base64 text
+   - `ANDROID_KEYSTORE_PASSWORD`
+   - `ANDROID_KEY_ALIAS`: `upload`
+   - `ANDROID_KEY_PASSWORD`
+4. Run the workflow again. A **market-apprentice-release-aab** artifact appears. That `.aab` is what you upload to Play. Each build gets a higher version code automatically.
+5. Create a **Google Play Console** account at play.google.com/console ($25, one-time). Then **Create app → Production → upload the .aab**.
 6. Fill in the store listing:
    - **Short description:** "Learn trading basics and practise with fake money."
-   - **Screenshots:** at least 2 phone screenshots (Menu, a Lesson, Trade, Report).
+   - **Screenshots:** at least 2 phone screenshots (Menu, 3D floor, a Lesson, Trade, Report).
    - **Feature graphic:** 1024×500.
    - **Icon:** 512×512. Use `icons/icon-512.png`.
-   - **Privacy policy URL:** required. Write a simple page saying "This game collects no data. Progress is stored only on your device."
-   - **Content rating questionnaire** and **Data safety:** answer "no data collected".
-7. **New personal developer accounts must run a closed test** with at least 12 testers for 14 days before going public. Recruit friends, Discord or Reddit communities early.
-8. Submit for review. Approval usually takes a few days.
+   - **Privacy policy URL:** required. Say "This game collects no data. Progress is stored only on your device."
+   - **Content rating questionnaire** and **Data safety:** answer "no data collected". Category: **Education**.
+7. **New personal developer accounts must run a closed test** with at least 12 testers for 14 days before going public. Start recruiting early.
+8. Submit for review.
+
+**App ID:** `com.marketapprentice.game` (in `capacitor.config.json` and `android/app/build.gradle`). It becomes permanent the first time you upload to Play, so change it before then if you want a different one.
+
+### Working on the Android project yourself (optional)
+You need Node 22+, JDK 21 and Android Studio.
+```bash
+npm ci
+npm run android:sync     # copies the game into www/ and into the Android project
+npx cap open android     # opens Android Studio; press Run to install on a phone or emulator
+```
+
+**Alternative without the repo project:** paste your Stage 1 website URL into **pwabuilder.com → Package for stores → Android**.
 
 ---
 
@@ -60,14 +86,12 @@ Apple doesn't accept plain website wrappers, so the app needs to feel like a rea
 2. You need **Xcode**, which only runs on a Mac. With no Mac, rent a cloud Mac (MacinCloud, about $1/hr), or use a cloud build service like Codemagic or Ionic Appflow.
 3. Wrap the game with **Capacitor**, the most common free tool for turning web apps into native apps:
    ```bash
-   npm init -y
-   npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/android
-   npx cap init "Market Apprentice" com.yourname.marketapprentice --web-dir www
-   mkdir www && cp -r index.html avatar.js world.js vendor manifest.webmanifest sw.js icons www/
+   npm ci                  # Capacitor is already set up in this repo (see Stage 2)
+   npm install @capacitor/ios
+   npm run build:web       # copies the game files into www/
    npx cap add ios
    npx cap open ios        # opens Xcode
    ```
-   (Capacitor can also build Android with `npx cap add android`, an alternative to PWABuilder in Stage 2.)
 4. In Xcode, set your Team (your developer account), the app icon (1024×1024, no transparency) and the version. Then choose **Product → Archive → Distribute → App Store Connect**.
 5. In **App Store Connect**, create the app listing:
    - screenshots for 6.7" and 6.5" iPhones
